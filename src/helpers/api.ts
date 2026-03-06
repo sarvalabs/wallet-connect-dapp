@@ -1,0 +1,338 @@
+import axios, { AxiosInstance } from "axios";
+import { apiGetKadenaAccountBalance } from "./kadena";
+
+import { AssetData } from "./types";
+import { PactCommand } from "@kadena/client";
+import { apiGetBip122AccountBalance } from "./bip122";
+import { getSuiClient } from "./sui";
+import { TronWeb } from "tronweb";
+import { JsonRpcProvider, KMOI_ASSET_ID } from "js-moi-sdk";
+
+export type RpcProvidersByChainId = Record<
+  number,
+  {
+    name: string;
+    baseURL: string;
+    token: {
+      name: string;
+      symbol: string;
+    };
+  }
+>;
+
+const WALLETCONNECT_RPC_BASE_URL = `https://rpc.walletconnect.com/v1?projectId=${process.env.NEXT_PUBLIC_PROJECT_ID}`;
+
+export const rpcProvidersByChainId: RpcProvidersByChainId = {
+  1: {
+    name: "Ethereum Mainnet",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:1",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  5: {
+    name: "Ethereum Goerli",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:5",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  11155111: {
+    name: "Ethereum Sepolia",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:11155111",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  137: {
+    name: "Polygon Mainnet",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:137",
+    token: {
+      name: "Matic",
+      symbol: "MATIC",
+    },
+  },
+  280: {
+    name: "zkSync Era Testnet",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:280",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  324: {
+    name: "zkSync Era",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:324",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  80001: {
+    name: "Polygon Mumbai",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:80001",
+    token: {
+      name: "Matic",
+      symbol: "MATIC",
+    },
+  },
+  10: {
+    name: "Optimism",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:10",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  420: {
+    name: "Optimism Goerli",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:420",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  42161: {
+    name: "Arbitrum",
+    baseURL: WALLETCONNECT_RPC_BASE_URL + "&chainId=eip155:42161",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  421611: {
+    name: "Arbitrum Rinkeby",
+    baseURL: "https://rinkeby.arbitrum.io/rpc",
+    token: {
+      name: "Ether",
+      symbol: "ETH",
+    },
+  },
+  100: {
+    name: "xDAI",
+    baseURL: "https://xdai-archive.blockscout.com",
+    token: {
+      name: "xDAI",
+      symbol: "xDAI",
+    },
+  },
+  42220: {
+    name: "Celo",
+    baseURL: "https://rpc.walletconnect.com/v1",
+    token: {
+      name: "CELO",
+      symbol: "CELO",
+    },
+  },
+  44787: {
+    name: "Celo Alfajores",
+    baseURL: "https://alfajores-forno.celo-testnet.org",
+    token: {
+      name: "CELO",
+      symbol: "CELO",
+    },
+  },
+  36900: {
+    name: "ADI Chain",
+    baseURL: "https://rpc.adifoundation.ai",
+    token: {
+      name: "ADI",
+      symbol: "ADI",
+    },
+  },
+};
+
+const api: AxiosInstance = axios.create({
+  baseURL: "https://rpc.walletconnect.com/v1",
+  timeout: 10000, // 10 secs
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  },
+});
+
+export async function apiGetAccountBalance(
+  address: string,
+  chainId: string,
+): Promise<AssetData> {
+  const [namespace, networkId] = chainId.split(":");
+
+  if (namespace === "kadena") {
+    return apiGetKadenaAccountBalance(
+      address,
+      networkId as PactCommand["networkId"],
+    );
+  }
+
+  if (namespace === "bip122") {
+    return apiGetBip122AccountBalance(address, networkId as string);
+  }
+
+  if (namespace === "sui") {
+    return apiGetSuiAccountBalance(address, chainId);
+  }
+
+  if (namespace === "tron") {
+    return apiGetTronAccountBalance(address, networkId);
+  }
+
+  if (namespace === "moi") {
+    return apiGetMoiAccountBalance(address, networkId);
+  }
+
+  if (namespace !== "eip155") {
+    return { balance: "", symbol: "", name: "" };
+  }
+
+  const ethChainId = chainId.split(":")[1];
+  const rpc = rpcProvidersByChainId[Number(ethChainId)];
+  if (!rpc) {
+    return { balance: "", symbol: "", name: "" };
+  }
+  const { baseURL, token } = rpc;
+  const response = await api.post(baseURL, {
+    jsonrpc: "2.0",
+    method: "eth_getBalance",
+    params: [address, "latest"],
+    id: 1,
+  });
+  const { result } = response.data;
+  const balance = parseInt(result, 16).toString();
+  return { balance, ...token };
+}
+
+export const apiGetTronAccountBalance = async (
+  address: string,
+  networkId: string,
+): Promise<AssetData> => {
+  try {
+    let fullHost: string;
+
+    switch (networkId) {
+      case "0x2b6653dc":
+        fullHost = "https://api.trongrid.io";
+        break;
+      case "0x94a9059e":
+        fullHost = "https://api.shasta.trongrid.io";
+        break;
+      case "0xcd8690dc":
+        fullHost = "https://nile.trongrid.io";
+        break;
+      default:
+        fullHost = "https://api.trongrid.io";
+    }
+
+    const tronWeb = new TronWeb({
+      fullHost: fullHost,
+    });
+    const balance = await tronWeb.trx.getBalance(address);
+
+    const balanceInTrx = tronWeb.fromSun(balance);
+
+    return {
+      balance: balanceInTrx.toString(),
+      symbol: "TRX",
+      name: "TRX",
+      decimals: 0,
+    };
+  } catch (error) {
+    console.error("Failed to fetch TRON balance:", error);
+    return {
+      balance: "0",
+      symbol: "TRX",
+      name: "TRX",
+      decimals: 0,
+    };
+  }
+};
+
+export const apiGetSuiAccountBalance = async (
+  address: string,
+  chainId: string,
+): Promise<AssetData> => {
+  const client = await getSuiClient(chainId);
+  if (!client) {
+    console.error(
+      "No sui client found for chainId and no balance can be fetched",
+      chainId,
+    );
+    return { balance: "", symbol: "", name: "" };
+  }
+  const balance = await client.getBalance({
+    owner: address,
+  });
+  return {
+    balance: (parseInt(balance.totalBalance) / 10 ** 9).toString(),
+    symbol: "SUI",
+    name: "SUI",
+  };
+};
+
+export const apiGetAccountNonce = async (
+  address: string,
+  chainId: string,
+): Promise<number> => {
+  const ethChainId = chainId.split(":")[1];
+  const { baseURL } = rpcProvidersByChainId[Number(ethChainId)];
+  const response = await api.post(baseURL, {
+    jsonrpc: "2.0",
+    method: "eth_getTransactionCount",
+    params: [address, "latest"],
+    id: 1,
+  });
+  const { result } = response.data;
+  const nonce = parseInt(result, 16);
+  return nonce;
+};
+
+export const apiGetGasPrice = async (chainId: string): Promise<string> => {
+  const ethChainId = chainId.split(":")[1];
+  const { baseURL } = rpcProvidersByChainId[Number(ethChainId)];
+  const response = await api.post(baseURL, {
+    jsonrpc: "2.0",
+    method: "eth_gasPrice",
+    params: [],
+    id: 1,
+  });
+  const { result } = response.data;
+  return result;
+};
+
+export const apiGetMoiAccountBalance = async (
+  address: string,
+  networkId: string,
+): Promise<AssetData> => {
+  try {
+    let rpcUrl: string;
+
+    // Map network ID to RPC URL
+    switch (networkId) {
+      case "14":
+        rpcUrl = "https://dev.voyage-rpc.moi.technology/devnet/";
+        break;
+      default:
+        rpcUrl = "https://dev.voyage-rpc.moi.technology/devnet/";
+    }
+
+    const provider = new JsonRpcProvider(rpcUrl);
+    const balance = await provider.getBalance(address, KMOI_ASSET_ID);
+
+    return {
+      balance: balance.toString(),
+      symbol: "KMOI",
+      name: "MOI",
+      decimals: 0,
+    };
+  } catch (error) {
+    console.error("Failed to fetch MOI balance:", error);
+    return {
+      balance: "0",
+      symbol: "MOI",
+      name: "MOI",
+      decimals: 0,
+    };
+  }
+};
