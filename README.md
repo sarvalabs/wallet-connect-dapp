@@ -1,6 +1,6 @@
 # React dApp (with standalone v2 client)
 
-🔗 Live dapp demo - https://react-app.walletconnect.com/ <br />
+🔗 Live dapp demo - https://wallet-connect-dapp-flax.vercel.app/ <br />
 🔗 Live wallet demo - https://react-wallet.walletconnect.com/ <br />
 📚 WalletConnect v2 Docs - https://docs.walletconnect.com/2.0
 
