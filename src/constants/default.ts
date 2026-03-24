@@ -307,7 +307,13 @@ export enum DEFAULT_MOI_METHODS {
   MOI_SIGN = "moi.sign",
 }
 
-export enum DEFAULT_MOI_EVENTS {}
+export enum DEFAULT_MOI_EVENTS {
+  MOI_CHAIN_CHANGED = "chainChanged",
+  MOI_ACCOUNTS_CHANGED = "accountsChanged",
+}
+
+export const MOI_LOGIC_ID =
+  "0x20000000556966d84adb9aa9b3d09b478505226a63eff375f85f8fe300000000";
 
 export const REGIONALIZED_RELAYER_ENDPOINTS: RelayerType[] = [
   {

@@ -709,6 +709,26 @@ const Home: NextPage = () => {
       await moiRpc.testSendAccountInherit(chainId, address);
     };
 
+    const onSignLogicDeploy = async (chainId: string, address: string) => {
+      openRequestModal();
+      await moiRpc.testSignLogicDeploy(chainId, address);
+    };
+
+    const onSendLogicDeploy = async (chainId: string, address: string) => {
+      openRequestModal();
+      await moiRpc.testSendLogicDeploy(chainId, address);
+    };
+
+    const onSignLogicInvoke = async (chainId: string, address: string) => {
+      openRequestModal();
+      await moiRpc.testSignLogicInvoke(chainId, address);
+    };
+
+    const onSendLogicInvoke = async (chainId: string, address: string) => {
+      openRequestModal();
+      await moiRpc.testSendLogicInvoke(chainId, address);
+    };
+
     return [
       {
         method: DEFAULT_MOI_METHODS.MOI_SIGN,
@@ -745,6 +765,22 @@ const Home: NextPage = () => {
       {
         method: "Send Account Inherit",
         callback: onSendAccountInherit,
+      },
+      {
+        method: "Sign Logic Deploy",
+        callback: onSignLogicDeploy,
+      },
+      {
+        method: "Send Logic Deploy",
+        callback: onSendLogicDeploy,
+      },
+      {
+        method: "Sign Logic Invoke",
+        callback: onSignLogicInvoke,
+      },
+      {
+        method: "Send Logic Invoke",
+        callback: onSendLogicInvoke,
       },
     ];
   };
