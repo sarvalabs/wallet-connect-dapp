@@ -10,7 +10,12 @@ import {
 } from "@mysten/sui/verify";
 import { Transaction as SuiTransaction } from "@mysten/sui/transactions";
 import * as NearApi from "near-api-js";
-import { KMOI_ASSET_ID, OpType } from "js-moi-sdk";
+import {
+  KMOI_ASSET_ID,
+  LogicManifest,
+  ManifestCoder,
+  OpType,
+} from "js-moi-sdk";
 
 import {
   formatDirectSignDoc,
@@ -48,6 +53,7 @@ import {
   hashTypedDataMessage,
   verifySignature,
 } from "../helpers";
+import contextFlipperJson from "../constants/contextFlipper.json";
 import { useWalletConnectClient } from "./ClientContext";
 import {
   DEFAULT_COSMOS_METHODS,
@@ -72,6 +78,7 @@ import {
   DEFAULT_SUI_METHODS,
   DEFAULT_STACKS_METHODS,
   DEFAULT_MOI_METHODS,
+  MOI_LOGIC_ID,
 } from "../constants";
 
 import { useChainData } from "./ChainDataContext";
@@ -210,6 +217,10 @@ interface IContext {
     testSendAccountConfigure: TRpcRequestCallback;
     testSignAccountInherit: TRpcRequestCallback;
     testSendAccountInherit: TRpcRequestCallback;
+    testSignLogicDeploy: TRpcRequestCallback;
+    testSendLogicDeploy: TRpcRequestCallback;
+    testSignLogicInvoke: TRpcRequestCallback;
+    testSendLogicInvoke: TRpcRequestCallback;
   };
 
   rpcResult?: IFormattedRpcResponse | null;
@@ -2899,6 +2910,133 @@ export function JsonRpcContextProvider({
                 amount: 1000,
                 targetLogicAccount:
                   "0x20800000a6ba9853f131679d00da0f033516a2efe9cd53c3d54e1f9a00000000",
+              },
+            ],
+          },
+        });
+
+        return {
+          method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
+          address,
+          valid: true,
+          result,
+        };
+      },
+    ),
+
+    testSignLogicDeploy: _createJsonRpcRequestHandler(
+      async (chainId: string, address: string) => {
+        const callSite = "Init";
+        const result = await client!.request<string>({
+          topic: session!.topic,
+          chainId,
+          request: {
+            method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
+            params: [
+              {
+                operationType: "Logic Deploy",
+                manifest: ManifestCoder.encodeManifest(
+                  contextFlipperJson as LogicManifest.Manifest,
+                ),
+                callSite: callSite,
+                callData: new ManifestCoder(
+                  contextFlipperJson as LogicManifest.Manifest,
+                ).encodeArguments(callSite, []),
+              },
+            ],
+          },
+        });
+
+        return {
+          method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
+          address,
+          valid: true,
+          result,
+        };
+      },
+    ),
+
+    testSendLogicDeploy: _createJsonRpcRequestHandler(
+      async (chainId: string, address: string) => {
+        const callSite = "Init";
+
+        const result = await client!.request<string>({
+          topic: session!.topic,
+          chainId,
+          request: {
+            method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
+            params: [
+              {
+                operationType: "Logic Deploy",
+                manifest: ManifestCoder.encodeManifest(
+                  contextFlipperJson as LogicManifest.Manifest,
+                ),
+                callSite: callSite,
+                callData: new ManifestCoder(
+                  contextFlipperJson as LogicManifest.Manifest,
+                ).encodeArguments(callSite, []),
+              },
+            ],
+          },
+        });
+
+        return {
+          method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
+          address,
+          valid: true,
+          result,
+        };
+      },
+    ),
+
+    testSignLogicInvoke: _createJsonRpcRequestHandler(
+      async (chainId: string, address: string) => {
+        const callSite = "Set";
+        const result = await client!.request<string>({
+          topic: session!.topic,
+          chainId,
+          request: {
+            method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
+            params: [
+              {
+                operationType: "Logic Invoke",
+                from: address,
+                logicId: MOI_LOGIC_ID,
+                callSite: callSite,
+                callData: new ManifestCoder(
+                  contextFlipperJson as LogicManifest.Manifest,
+                ).encodeArguments(callSite, [false]),
+              },
+            ],
+          },
+        });
+
+        return {
+          method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
+          address,
+          valid: true,
+          result,
+        };
+      },
+    ),
+
+    testSendLogicInvoke: _createJsonRpcRequestHandler(
+      async (chainId: string, address: string) => {
+        const callSite = "Set";
+        const result = await client!.request<string>({
+          topic: session!.topic,
+          chainId,
+          request: {
+            method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
+            params: [
+              {
+                operationType: "Logic Invoke",
+                from: address,
+                logicId: MOI_LOGIC_ID,
+                callSite: callSite,
+                callData: new ManifestCoder(
+                  contextFlipperJson as LogicManifest.Manifest,
+                ).encodeArguments(callSite, [false]),
               },
             ],
           },
