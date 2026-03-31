@@ -6,7 +6,7 @@ import { PactCommand } from "@kadena/client";
 import { apiGetBip122AccountBalance } from "./bip122";
 import { getSuiClient } from "./sui";
 import { TronWeb } from "tronweb";
-import { JsonRpcProvider, KMOI_ASSET_ID } from "js-moi-sdk";
+import { JsonRpcProvider, KMOI_ASSET_ID, Wallet } from "js-moi-sdk";
 
 export type RpcProvidersByChainId = Record<
   number,
@@ -335,4 +335,23 @@ export const apiGetMoiAccountBalance = async (
       decimals: 0,
     };
   }
+};
+
+export const getNonce = async (wallet: Wallet) => {
+  try {
+    return Number(await wallet.getNonce());
+  } catch (error) {
+    return 1;
+  }
+};
+
+export const getRandomWallet = async () => {
+  const randomWallet = Wallet.createRandomSync();
+
+  const provider = new JsonRpcProvider(
+    "https://dev.voyage-rpc.moi.technology/devnet/",
+  );
+  randomWallet.connect(provider);
+
+  return randomWallet;
 };

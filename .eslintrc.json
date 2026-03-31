@@ -5,11 +5,15 @@
     "@next/next/no-img-element": "off"
   },
   "overrides": [
-		{
-			"extends": ["plugin:package-json/recommended"],
-			"files": ["package.json"],
-			"parser": "jsonc-eslint-parser",
-			"plugins": ["package-json"]
-		}
-	]
+    {
+      "files": ["package.json"],
+      "parser": "jsonc-eslint-parser",
+      "plugins": ["package-json"],
+      "rules": {
+        "package-json/order-properties": "error",
+        "package-json/repository": "error",
+        "package-json/valid-package-definition": "error"
+      }
+    }
+  ]
 }
