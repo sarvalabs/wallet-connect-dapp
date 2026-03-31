@@ -219,6 +219,8 @@ interface IContext {
     testSignData: TRpcRequestCallback;
   };
   moiRpc: {
+    testSendInteraction: TRpcRequestCallback;
+    testSignInteractions: TRpcRequestCallback;
     testSign: TRpcRequestCallback;
     testSignAssetInvoke: TRpcRequestCallback;
     testSendAssetInvoke: TRpcRequestCallback;
@@ -2634,6 +2636,48 @@ export function JsonRpcContextProvider({
   // -------- MOI RPC METHODS --------
 
   const moiRpc = {
+    testSendInteraction: _createJsonRpcRequestHandler(
+      async (chainId: string, address: string) => {
+        const message = "Hello MOI";
+        const result = await client!.request<string>({
+          topic: session!.topic,
+          chainId,
+          request: {
+            method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
+            params: [address, message],
+          },
+        });
+
+        return {
+          method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
+          address,
+          valid: true,
+          result,
+        };
+      },
+    ),
+
+    testSignInteractions: _createJsonRpcRequestHandler(
+      async (chainId: string, address: string) => {
+        const message = "Hello MOI";
+        const result = await client!.request<string>({
+          topic: session!.topic,
+          chainId,
+          request: {
+            method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
+            params: [address, message],
+          },
+        });
+
+        return {
+          method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
+          address,
+          valid: true,
+          result,
+        };
+      },
+    ),
+
     testSign: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
         const message = "Hello MOI";

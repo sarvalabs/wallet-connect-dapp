@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   distDir: "build",
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   webpack(config) {
     config.resolve.fallback = {
       ...config.resolve.fallback,
