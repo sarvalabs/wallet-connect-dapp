@@ -11,10 +11,19 @@ import {
 import { Transaction as SuiTransaction } from "@mysten/sui/transactions";
 import * as NearApi from "near-api-js";
 import {
+  AccountConfigure,
+  AccountInherit,
+  getLogicDriver,
+  Hex,
+  JsonRpcProvider,
   KMOI_ASSET_ID,
+  LogicFactory,
   LogicManifest,
   ManifestCoder,
+  MAS0AssetLogic,
   OpType,
+  ParticipantCreate,
+  Wallet,
 } from "js-moi-sdk";
 
 import {
@@ -82,7 +91,11 @@ import {
 } from "../constants";
 
 import { useChainData } from "./ChainDataContext";
-import { rpcProvidersByChainId } from "../../src/helpers/api";
+import {
+  getNonce,
+  getRandomWallet,
+  rpcProvidersByChainId,
+} from "../../src/helpers/api";
 import { signatureVerify, cryptoWaitReady } from "@polkadot/util-crypto";
 
 import {
@@ -206,8 +219,6 @@ interface IContext {
     testSignData: TRpcRequestCallback;
   };
   moiRpc: {
-    testSendInteraction: TRpcRequestCallback;
-    testSignInteractions: TRpcRequestCallback;
     testSign: TRpcRequestCallback;
     testSignAssetInvoke: TRpcRequestCallback;
     testSendAssetInvoke: TRpcRequestCallback;
@@ -2623,62 +2634,6 @@ export function JsonRpcContextProvider({
   // -------- MOI RPC METHODS --------
 
   const moiRpc = {
-    testSendInteraction: _createJsonRpcRequestHandler(
-      async (chainId: string, address: string) => {
-        const result = await client!.request<string>({
-          topic: session!.topic,
-          chainId,
-          request: {
-            method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-            params: [
-              {
-                from: address,
-                to: address,
-                data: "0x",
-                value: "0x0",
-                assetId: KMOI_ASSET_ID,
-                amount: 1000,
-              },
-            ],
-          },
-        });
-
-        return {
-          method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-          address,
-          valid: true,
-          result,
-        };
-      },
-    ),
-    testSignInteractions: _createJsonRpcRequestHandler(
-      async (chainId: string, address: string) => {
-        const result = await client!.request<string>({
-          topic: session!.topic,
-          chainId,
-          request: {
-            method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-            params: [
-              {
-                from: address,
-                to: address,
-                data: "0x",
-                value: "0x0",
-                assetId: KMOI_ASSET_ID,
-                amount: 1000,
-              },
-            ],
-          },
-        });
-
-        return {
-          method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-          address,
-          valid: true,
-          result,
-        };
-      },
-    ),
     testSign: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
         const message = "Hello MOI";
@@ -2702,22 +2657,27 @@ export function JsonRpcContextProvider({
 
     testSignAssetInvoke: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
+        const randomWallet = await getRandomWallet();
+
+        const assetContext = await new MAS0AssetLogic(
+          KMOI_ASSET_ID,
+          randomWallet,
+        )
+          .transfer(address, 1000)
+          .ixData({
+            sender: {
+              id: (await randomWallet.getIdentifier()).toHex(),
+              key_id: await randomWallet.getKeyId(),
+              sequence: await getNonce(randomWallet),
+            },
+          });
+
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-            params: [
-              {
-                operationType: "Asset Transfer",
-                from: address,
-                to: address,
-                data: "0x",
-                value: "0x0",
-                assetId: KMOI_ASSET_ID,
-                amount: 1000,
-              },
-            ],
+            params: [assetContext],
           },
         });
 
@@ -2732,22 +2692,27 @@ export function JsonRpcContextProvider({
 
     testSendAssetInvoke: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
+        const randomWallet = await getRandomWallet();
+
+        const assetContext = await new MAS0AssetLogic(
+          KMOI_ASSET_ID,
+          randomWallet,
+        )
+          .transfer(address, 1000)
+          .ixData({
+            sender: {
+              id: (await randomWallet.getIdentifier()).toHex(),
+              key_id: await randomWallet.getKeyId(),
+              sequence: await getNonce(randomWallet),
+            },
+          });
+
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-            params: [
-              {
-                operationType: "Asset Transfer",
-                from: address,
-                to: address,
-                data: "0x",
-                value: "0x0",
-                assetId: KMOI_ASSET_ID,
-                amount: 1000,
-              },
-            ],
+            params: [assetContext],
           },
         });
 
@@ -2762,22 +2727,30 @@ export function JsonRpcContextProvider({
 
     testSignParticipantCreate: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
+        const randomWallet = await getRandomWallet();
+
+        const participant = new ParticipantCreate(randomWallet);
+        const pubKey = "0x" + randomWallet.publicKey;
+        const participantId = (await randomWallet.getIdentifier()).toHex();
+        const participantContext = await participant
+          .id(participantId)
+          .addKey(pubKey as Hex, 1000, 0)
+          .value(KMOI_ASSET_ID, participantId, 1000)
+          .build()
+          .ixData({
+            sender: {
+              id: (await randomWallet.getIdentifier()).toHex(),
+              key_id: await randomWallet.getKeyId(),
+              sequence: await getNonce(randomWallet),
+            },
+          });
+
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-            params: [
-              {
-                operationType: "Create Participant",
-                from: address,
-                to: address,
-                data: "0x",
-                value: "0x0",
-                assetId: KMOI_ASSET_ID,
-                amount: 7000,
-              },
-            ],
+            params: [participantContext],
           },
         });
 
@@ -2792,22 +2765,29 @@ export function JsonRpcContextProvider({
 
     testSendParticipantCreate: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
+        const randomWallet = await getRandomWallet();
+        const participant = new ParticipantCreate(randomWallet);
+        const pubKey = "0x" + randomWallet.publicKey;
+        const participantId = (await randomWallet.getIdentifier()).toHex();
+        const participantContext = await participant
+          .id(participantId)
+          .addKey(pubKey as Hex, 1000, 0)
+          .value(KMOI_ASSET_ID, participantId, 1000)
+          .build()
+          .ixData({
+            sender: {
+              id: (await randomWallet.getIdentifier()).toHex(),
+              key_id: await randomWallet.getKeyId(),
+              sequence: await getNonce(randomWallet),
+            },
+          });
+
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-            params: [
-              {
-                operationType: "Create Participant",
-                from: address,
-                to: address,
-                data: "0x",
-                value: "0x0",
-                assetId: KMOI_ASSET_ID,
-                amount: 7000,
-              },
-            ],
+            params: [participantContext],
           },
         });
 
@@ -2822,16 +2802,27 @@ export function JsonRpcContextProvider({
 
     testSignAccountConfigure: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
+        const randomWallet = await getRandomWallet();
+        const account = new AccountConfigure(randomWallet);
+        const pubKey = "0x" + randomWallet.publicKey;
+
+        const accountConfigureContext = await account
+          .addKey(pubKey as Hex, 1000)
+          .build()
+          .ixData({
+            sender: {
+              id: (await randomWallet.getIdentifier()).toHex(),
+              key_id: await randomWallet.getKeyId(),
+              sequence: await getNonce(randomWallet),
+            },
+          });
+
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-            params: [
-              {
-                operationType: "Account Configure",
-              },
-            ],
+            params: [accountConfigureContext],
           },
         });
 
@@ -2846,16 +2837,26 @@ export function JsonRpcContextProvider({
 
     testSendAccountConfigure: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
+        const randomWallet = await getRandomWallet();
+        const account = new AccountConfigure(randomWallet);
+        const pubKey = "0x" + randomWallet.publicKey;
+
+        const accountConfigureContext = await account
+          .addKey(pubKey as Hex, 1000)
+          .build()
+          .ixData({
+            sender: {
+              id: (await randomWallet.getIdentifier()).toHex(),
+              key_id: await randomWallet.getKeyId(),
+              sequence: await getNonce(randomWallet),
+            },
+          });
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-            params: [
-              {
-                operationType: "Account Configure",
-              },
-            ],
+            params: [accountConfigureContext],
           },
         });
 
@@ -2870,20 +2871,33 @@ export function JsonRpcContextProvider({
 
     testSignAccountInherit: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
+        const randomWallet = await getRandomWallet();
+        const acc = new AccountInherit(randomWallet);
+        const subAccountIndex = 11;
+        const targetLogicAccount =
+          "0x20800000a6ba9853f131679d00da0f033516a2efe9cd53c3d54e1f9a00000000";
+        const subAccountId = (await randomWallet.getIdentifier())
+          .createNewVariant(subAccountIndex)
+          .toHex();
+
+        const accountInheritCtx = await acc
+          .index(subAccountIndex)
+          .target(targetLogicAccount)
+          .value(KMOI_ASSET_ID, subAccountId, 100)
+          .build()
+          .ixData({
+            sender: {
+              id: (await randomWallet.getIdentifier()).toHex(),
+              key_id: await randomWallet.getKeyId(),
+              sequence: await getNonce(randomWallet),
+            },
+          });
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-            params: [
-              {
-                operationType: "Account Inherit",
-                assetId: KMOI_ASSET_ID,
-                amount: 1000,
-                targetLogicAccount:
-                  "0x20800000a6ba9853f131679d00da0f033516a2efe9cd53c3d54e1f9a00000000",
-              },
-            ],
+            params: [accountInheritCtx],
           },
         });
 
@@ -2898,22 +2912,36 @@ export function JsonRpcContextProvider({
 
     testSendAccountInherit: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
+        const randomWallet = await getRandomWallet();
+        const acc = new AccountInherit(randomWallet);
+        const subAccountIndex = 4;
+        const targetLogicAccount =
+          "0x20800000a6ba9853f131679d00da0f033516a2efe9cd53c3d54e1f9a00000000";
+        const subAccountId = (await randomWallet.getIdentifier())
+          .createNewVariant(subAccountIndex)
+          .toHex();
+
+        const accountInheritCtx = await acc
+          .index(subAccountIndex)
+          .target(targetLogicAccount)
+          .value(KMOI_ASSET_ID, subAccountId, 100)
+          .build()
+          .ixData({
+            sender: {
+              id: (await randomWallet.getIdentifier()).toHex(),
+              key_id: await randomWallet.getKeyId(),
+              sequence: await getNonce(randomWallet),
+            },
+          });
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-            params: [
-              {
-                operationType: "Account Inherit",
-                assetId: KMOI_ASSET_ID,
-                amount: 1000,
-                targetLogicAccount:
-                  "0x20800000a6ba9853f131679d00da0f033516a2efe9cd53c3d54e1f9a00000000",
-              },
-            ],
+            params: [accountInheritCtx],
           },
         });
+        console.log("Result ", result);
 
         return {
           method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
@@ -2926,24 +2954,24 @@ export function JsonRpcContextProvider({
 
     testSignLogicDeploy: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
-        const callSite = "Init";
+        const randomWallet = await getRandomWallet();
+
+        const manifest: any = contextFlipperJson;
+
+        const factory = new LogicFactory(manifest, randomWallet);
+        const logicContext = await factory.deploy("Init", [true]).ixData({
+          sender: {
+            id: (await randomWallet.getIdentifier()).toHex(),
+            key_id: await randomWallet.getKeyId(),
+            sequence: await getNonce(randomWallet),
+          },
+        });
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-            params: [
-              {
-                operationType: "Logic Deploy",
-                manifest: ManifestCoder.encodeManifest(
-                  contextFlipperJson as LogicManifest.Manifest,
-                ),
-                callSite: callSite,
-                callData: new ManifestCoder(
-                  contextFlipperJson as LogicManifest.Manifest,
-                ).encodeArguments(callSite, []),
-              },
-            ],
+            params: [logicContext],
           },
         });
 
@@ -2958,25 +2986,24 @@ export function JsonRpcContextProvider({
 
     testSendLogicDeploy: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
-        const callSite = "Init";
+        const randomWallet = await getRandomWallet();
 
+        const manifest: any = contextFlipperJson;
+
+        const factory = new LogicFactory(manifest, randomWallet);
+        const logicContext = await factory.deploy("Init", [true]).ixData({
+          sender: {
+            id: (await randomWallet.getIdentifier()).toHex(),
+            key_id: await randomWallet.getKeyId(),
+            sequence: await getNonce(randomWallet),
+          },
+        });
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-            params: [
-              {
-                operationType: "Logic Deploy",
-                manifest: ManifestCoder.encodeManifest(
-                  contextFlipperJson as LogicManifest.Manifest,
-                ),
-                callSite: callSite,
-                callData: new ManifestCoder(
-                  contextFlipperJson as LogicManifest.Manifest,
-                ).encodeArguments(callSite, []),
-              },
-            ],
+            params: [logicContext],
           },
         });
 
@@ -2991,23 +3018,24 @@ export function JsonRpcContextProvider({
 
     testSignLogicInvoke: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
-        const callSite = "Set";
+        const randomWallet = await getRandomWallet();
+        const logicId =
+          "0x200000001fbf60cac80d01d40b91f821a73a2483cff4d3f9ed40660f00000000";
+        const driver = await getLogicDriver(logicId, randomWallet);
+        const ixContext = await driver.routines.Set(false).ixData({
+          sender: {
+            id: (await randomWallet.getIdentifier()).toHex(),
+            key_id: await randomWallet.getKeyId(),
+            sequence: await getNonce(randomWallet),
+          },
+        });
+
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-            params: [
-              {
-                operationType: "Logic Invoke",
-                from: address,
-                logicId: MOI_LOGIC_ID,
-                callSite: callSite,
-                callData: new ManifestCoder(
-                  contextFlipperJson as LogicManifest.Manifest,
-                ).encodeArguments(callSite, [false]),
-              },
-            ],
+            params: [ixContext],
           },
         });
 
