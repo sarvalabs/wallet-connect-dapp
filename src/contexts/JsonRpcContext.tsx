@@ -228,8 +228,6 @@ interface IContext {
     testSendParticipantCreate: TRpcRequestCallback;
     testSignAccountConfigure: TRpcRequestCallback;
     testSendAccountConfigure: TRpcRequestCallback;
-    testSignAccountInherit: TRpcRequestCallback;
-    testSendAccountInherit: TRpcRequestCallback;
     testSignLogicDeploy: TRpcRequestCallback;
     testSendLogicDeploy: TRpcRequestCallback;
     testSignLogicInvoke: TRpcRequestCallback;
@@ -2903,89 +2901,6 @@ export function JsonRpcContextProvider({
             params: [accountConfigureContext],
           },
         });
-
-        return {
-          method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-          address,
-          valid: true,
-          result,
-        };
-      },
-    ),
-
-    testSignAccountInherit: _createJsonRpcRequestHandler(
-      async (chainId: string, address: string) => {
-        const randomWallet = await getRandomWallet();
-        const acc = new AccountInherit(randomWallet);
-        const subAccountIndex = 11;
-        const targetLogicAccount =
-          "0x20800000a6ba9853f131679d00da0f033516a2efe9cd53c3d54e1f9a00000000";
-        const subAccountId = (await randomWallet.getIdentifier())
-          .createNewVariant(subAccountIndex)
-          .toHex();
-
-        const accountInheritCtx = await acc
-          .index(subAccountIndex)
-          .target(targetLogicAccount)
-          .value(KMOI_ASSET_ID, subAccountId, 100)
-          .build()
-          .ixData({
-            sender: {
-              id: (await randomWallet.getIdentifier()).toHex(),
-              key_id: await randomWallet.getKeyId(),
-              sequence: await getNonce(randomWallet),
-            },
-          });
-        const result = await client!.request<string>({
-          topic: session!.topic,
-          chainId,
-          request: {
-            method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-            params: [accountInheritCtx],
-          },
-        });
-
-        return {
-          method: DEFAULT_MOI_METHODS.MOI_SIGN_INTERACTION,
-          address,
-          valid: true,
-          result,
-        };
-      },
-    ),
-
-    testSendAccountInherit: _createJsonRpcRequestHandler(
-      async (chainId: string, address: string) => {
-        const randomWallet = await getRandomWallet();
-        const acc = new AccountInherit(randomWallet);
-        const subAccountIndex = 4;
-        const targetLogicAccount =
-          "0x20800000a6ba9853f131679d00da0f033516a2efe9cd53c3d54e1f9a00000000";
-        const subAccountId = (await randomWallet.getIdentifier())
-          .createNewVariant(subAccountIndex)
-          .toHex();
-
-        const accountInheritCtx = await acc
-          .index(subAccountIndex)
-          .target(targetLogicAccount)
-          .value(KMOI_ASSET_ID, subAccountId, 100)
-          .build()
-          .ixData({
-            sender: {
-              id: (await randomWallet.getIdentifier()).toHex(),
-              key_id: await randomWallet.getKeyId(),
-              sequence: await getNonce(randomWallet),
-            },
-          });
-        const result = await client!.request<string>({
-          topic: session!.topic,
-          chainId,
-          request: {
-            method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-            params: [accountInheritCtx],
-          },
-        });
-        console.log("Result ", result);
 
         return {
           method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
