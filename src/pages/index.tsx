@@ -699,16 +699,6 @@ const Home: NextPage = () => {
       await moiRpc.testSendAccountConfigure(chainId, address);
     };
 
-    const onSignAccountInherit = async (chainId: string, address: string) => {
-      openRequestModal();
-      await moiRpc.testSignAccountInherit(chainId, address);
-    };
-
-    const onSendAccountInherit = async (chainId: string, address: string) => {
-      openRequestModal();
-      await moiRpc.testSendAccountInherit(chainId, address);
-    };
-
     const onSignLogicDeploy = async (chainId: string, address: string) => {
       openRequestModal();
       await moiRpc.testSignLogicDeploy(chainId, address);
@@ -758,14 +748,7 @@ const Home: NextPage = () => {
         method: "Send Account Configure",
         callback: onSendAccountConfigure,
       },
-      {
-        method: "Sign Account Inherit",
-        callback: onSignAccountInherit,
-      },
-      {
-        method: "Send Account Inherit",
-        callback: onSendAccountInherit,
-      },
+
       {
         method: "Sign Logic Deploy",
         callback: onSignLogicDeploy,
