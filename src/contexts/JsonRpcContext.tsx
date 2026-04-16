@@ -2957,6 +2957,7 @@ export function JsonRpcContextProvider({
             sequence: await getNonce(randomWallet),
           },
         });
+
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
@@ -3009,23 +3010,23 @@ export function JsonRpcContextProvider({
 
     testSendLogicInvoke: _createJsonRpcRequestHandler(
       async (chainId: string, address: string) => {
-        const callSite = "Set";
+        const randomWallet = await getRandomWallet();
+        const logicId =
+          "0x200000001fbf60cac80d01d40b91f821a73a2483cff4d3f9ed40660f00000000";
+        const driver = await getLogicDriver(logicId, randomWallet);
+        const ixContext = await driver.routines.Set(false).ixData({
+          sender: {
+            id: (await randomWallet.getIdentifier()).toHex(),
+            key_id: await randomWallet.getKeyId(),
+            sequence: await getNonce(randomWallet),
+          },
+        });
         const result = await client!.request<string>({
           topic: session!.topic,
           chainId,
           request: {
             method: DEFAULT_MOI_METHODS.MOI_SEND_INTERACTIONS,
-            params: [
-              {
-                operationType: "Logic Invoke",
-                from: address,
-                logicId: MOI_LOGIC_ID,
-                callSite: callSite,
-                callData: new ManifestCoder(
-                  contextFlipperJson as LogicManifest.Manifest,
-                ).encodeArguments(callSite, [false]),
-              },
-            ],
+            params: [ixContext],
           },
         });
 
